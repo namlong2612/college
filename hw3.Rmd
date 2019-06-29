@@ -1,0 +1,63 @@
+---
+title: "HW3"
+author: "Long Tran"
+date: "February 11, 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup }
+library(tidyverse)
+library(ggplot2)
+library(ggforce)
+
+europe <- read.csv("playfair_european_nations.csv")
+europe$Country <- fct_reorder(europe$Country, europe$Area, .desc=TRUE)
+
+```
+# 1 - Summarize aspects of this graphic that work well to display quantitative information.
+
+  Playfair is a British engineer and economist that had innovative ideas in the field of statistics. In his “Chart Representing the Extent, Population and Revenues of the Principal Nations in Europe.”, many aspects are noteworthy. As the line graphs start from 0, it is easier for us to see the data and have a sense of how each variable relate to each other. Also, Playfair ordered the countries by a meaningful value, which is the Area. By sorting the countries from large to small, he gave the audience the idea of how small Britain is compared to other countries, and how high their taxes are. Additionally, by using axes with common range, it is easier for us to make comparisons; and with the line connecting population and taxation, we can compare the difference between countries by looking at the slopes.
+
+# 2 - What aspects of this graph are perhaps not ideal?
+
+  However, Playfair's chart also had some drawbacks of its own. First of all, the sizes of the circles that represent countries' areas are quite off. For example, the size of Russia Empire looks like one-and-a-half times the size of the Turkish Empire, but in fact, its is almost 6 times bigger. This may gives the audience a wrong understanding about the area of the countries. In my opinion, some variables in Playfair's chart are quite extra. For instance, the colors and proportions of the circles are unnecessary, because the continents of the countries do not really matter here. Moreover, the information given inside the circles are pretty inconsistent. For the first 2 nations, their region were given, but for the following ones, the areas were given. 
+
+# 3 - Using the data set playfair_european_nations.csv, write ggplot code to come as close as you can to replicating Playfair’s graph.
+```{r}
+europe$x0 <-  c(13,31,44,55,66,77,88,99,109,118,126.5,134) #x-coordinates for the circles
+europe$y0=c(rep(0,12))
+europe$r <- c(8,5,rep(3,6), 2, 1.5, 1.5,1)
+europe <- europe %>%
+  mutate(
+    x_pop = x0 - r,
+    x_tax = x0 +r
+  )
+circles <- ggplot(europe) + geom_circle(aes(x0=europe$x0, y0=europe$y0, r=europe$r)) + coord_fixed()
+# population plot
+pop_line <- geom_segment(aes(x=x_pop,y=y0, xend = x_pop, yend = Population), color = 'red', size = 1, lineend = "butt")
+# taxtation plot
+tax_line <- geom_segment(aes(x=x_tax,y=y0, xend = x_tax, yend = Taxation), color = 'yellow', size = 1, lineend = "butt")
+# connecting lines
+connect_line <- geom_segment(aes(x=x_pop, y=Population, xend=x_tax, yend=Taxation), size=0.3, lineend="butt")
+# 2nd y-axis
+tax_y_axis <- scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Taxation"))
+# final graph
+playfair <- circles + pop_line + tax_line + connect_line + tax_y_axis + ggtitle("Chart Representing the Extent, Population and\n Revenues of the Principal Nations in Europe.") + xlab("Countries") + ylab("Population") + annotate("text", x = europe$x0, y = -5, label = europe$Country, angle=90, size = 2) 
+
+playfair
+```
+
+# 4 - How you might visualize Playfair’s data to achieve the given goals.
+
+  With this graph, Playfair's point was to demonstrate that British suffered from excessive taxation from the government. As the graph shows, we do see that Britain has much higher tax than the countries in the data. If I were to visualize a design to prove the same point as Playfair, I might have some different approaches. First, instead of choosing only 11 countries I would take a data set of every countries in Europe or at least the top 10 European countries that have highest taxation. That way, the audience would have a broader idea of how taxation is in all of the continent. Secondly, in place of the line graphs represent population and taxation, I would just use a bubble chart with population and taxation as the axises. The countries would still be represent as circles with variation of sizes based on their area. That way, we can still see how taxation corresponds to population and area without too much lines in our graph. This was quite similar to how Hans Rosling represent his global trends in health and economic in his TED Talk. 
+
+```{r}
+library(ggrepel)
+ggplot(europe, aes(x=Taxation, y=Population, size=Area, colour=Country))+geom_point(alpha=0.5)+scale_size_continuous(range=c(1,15))+ geom_text_repel(aes(label=Country), size = 4)+
+  ggtitle("Extent, Population and\n Revenues of the Principal Nations in Europe.")
+
+
+```
+

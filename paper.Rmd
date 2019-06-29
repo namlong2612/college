@@ -1,0 +1,270 @@
+---
+title: "Home advantage over the year in European football"
+author: "Long Tran"
+date: "March 21, 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+# I. Introduction
+
+  In 2004, Arsenal managed by Arsene Wenger shocked the soccer world when they won the Premier League without losing a single match and made people question the concept of home advantage. In sports overall, home advantage has always been considered a key factor in determining the result of the game. And in a game full of excitement and unexpectation like soccer, having even a little edge over the opponent is something any team would want. Using European soccer data, I want to look into how big of an effect does home advantage have over the result of a match, and how does this effect look like over the time period of 1888 to 2017.
+ 
+  Home team has a better chance at winning the game has always been considered a fact, but the causes and levels of effect that they have are still vague for people. In his paper “Home Advantage in Football: A Current Review of an Unsolved Puzzle” , Professor Richard Pollard from California Polytechnic State University offered several reasons explaining how playing at the home stadium affects the performance of the home team in soccer. They are: crowd effects, travel effects, familiarity, referee bias, territoriality , special tactics, and rule factors (1). Some of them are fairly obvious as they represent the psychological aspects of the home advantage. Home teams have their supporters around them, cheering and roaring their names, giving them confidence while intimidating the opponents. They feel at home, while the visiting team feel vulnerable. And certainly, when you are psychological prepared, your physical performance is also boosted. Overall, home advantage is not a myth but rather a certainty and the mentioned reasons most likely not cover everything. “Clearly, there is still much to be learnt about the complex mechanisms that cause home advantage, both in soccer and other sports.” (1). 
+
+
+# II. Analysis
+
+  For this paper, I will use several datasets: “england”, “italy”, “spain”, “germany”, “champs”, from the R package “engsoccerdata” by James P. Curley, posted for public use on github. (2)The package contains data from several national leagues and competitions all over Europe as well as some other countries. The author of the package compiled data from several sources, including Rec.Sport.Soccer Statistics Foundation, ESPN, statto.com, worldfootball.net, or football-data.co.uk. Each dataset contains information about individual matches, date back to at least 1974. For each match, the 2 teams, division tier, scores ar full time, total goals, goal difference, and result, are available. Using this dataset, I would like to see the home win and away win percentage for each league over time. How does the trend of home/ away win looks like over the year? Knowing these information would gives us some insight about how soccer has developed and changed, by time and by countries. 
+  First, I am interested in the win percentage for home team and away team over the years in the English Premier League, which is the highest level competition of the English soccer system and arguably the most competitive national league in the world. The competition was renamed “Premier League” in the early 1990s, before that it was just called the Football League. The first record league is the 1888/1889 season, which is also the oldest competition in the soccer world. The graph below represents the percentage of games that home team wins, draws, and away team wins individually in the 1888 - 2016 period:
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(engsoccerdata)
+
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+epl.df <- england %>% filter(division==1)
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result=="H")/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result=="D")/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result=="A")/nrow(temp.epl)
+}
+
+df <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season)) 
+colnames(df) <- c("home win", "draw", "away win", "season")
+df <- df %>% filter(`home win`>0,`away win`>0,draw>0)%>% gather(result, percentage, `home win`:`away win`)
+
+df.EPL <- df
+df.EPL$League <- "EPL"
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(df, aes(x=season,y=percentage,col=result)) + 
+  geom_point()+
+  geom_smooth(method="lm") +
+  scale_y_continuous("",breaks = c(0, 0.2, 0.4, 0.6, 0.8), lim = c(0, 0.8), 
+                     labels = c("0%", "20%", "40%", "60%", "80%")) +
+  ggtitle("EPL Results by Season") +
+  xlab("Season") + ylab("Percentage")+
+  theme_bw()
+
+```
+  
+  Over the course of 128 seasons, we can see a declining trend of home win percentage in the English Premier League. In the early days of English football, about 60 percent of games were won by the home team. Draw percentage and away win percentage are split quite equally, about 25% for away win and 15% for draw. Nowadays, home teams win about 50% of the games, away team wins about 30%, and the rest are draws. Clearly, there is a consistent trend of declining for home-field advantage, at least for the English Premier League. Using this rate of decline, we can expect home-field teams to win 0% of their matches in the year of 2400. However, we have to keep in mind that there are missing data from season 1939 to 1945, which might affect our data.
+  
+  In soccer, the most important factor to determine the result of a match is certainly the number of goals. As the win percentage for home team has a dramatic shift, looking at the number of goals of home teams might provide an explanation for it. The following graph shows the average number of goals for home and away teams by each season:
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+hgoal.avg <- NULL
+vgoal.avg <- NULL
+
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  hgoal.avg[i] <- sum(temp.epl$hgoal) / nrow(temp.epl)
+  vgoal.avg[i] <- sum(temp.epl$vgoal) / nrow(temp.epl)
+}
+
+df2 <- data.frame(hgoal.avg, vgoal.avg, min(epl.df$Season):max(epl.df$Season))
+colnames(df2) <- c("home", "away", "season")
+df2 <- df2 %>% gather(team, avg.goal,home:away)
+
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(df2) + geom_point(aes(y=avg.goal, x=season, col=team)) +
+  geom_smooth(aes(x=season, y=avg.goal,col=team))+
+  #facet_grid(. ~ team) +
+  ggtitle("EPL Goals by Venues") +
+  xlab("Season") + ylab("Average Goal per Game") +
+  theme_bw()
+  
+```
+
+  At first glance, both sides’ scoring record fluctuated over more than 120 seasons. Similar to the win percentage, home teams’ average goal per game decreases over the time period. From approximately 2.5 goals a game in the early 1900s, home teams only score about 1.5 goal per game nowadays.  On the other hand, visitor teams’ goal per game variate between 1 and 1.3, which is much more stable, compared to home teams. So, over the years, it has been harder for home teams to score the same amount of goals at the early days of the League. Consequently, the win percentage for home team dropped dramatically from 60% to 50%. 
+  
+  At this point, drawing a conclusion is too early. Therefore, comparing the same variables for different datasets should give us a better idea. In term of soccer development, England, Spain, Germany, and Italy are considered the top four most powerful and successful soccer countries in Europe. On that account, I would use additional datasets from La Liga, Bundesliga, and Serie A to compare with the results we have from the English Premier League. The graph below compares the home-field team win percentage for the top four national leagues in Europe by seasons:
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Get Bundesliga data
+
+epl.df <- germany %>% mutate(result =  ifelse(hgoal > vgoal, 1, ifelse(hgoal < vgoal, 0, 0.5)))%>%
+  select(home, visitor, Season, result)
+
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result==1)/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result==0.5)/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result==0)/nrow(temp.epl)
+}
+
+df.Bundesliga <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season), League = "Bundesliga") 
+colnames(df.Bundesliga) <- c("home win", "draw", "away win", "season", "League")
+df.Bundesliga <- df.Bundesliga %>% filter(`home win`>0,`away win`>0,draw>0)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Get La Liga data
+
+epl.df <- spain %>% mutate(result =  ifelse(hgoal > vgoal, 1, ifelse(hgoal < vgoal, 0, 0.5)))%>%
+  select(home, visitor, Season, result)
+
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result==1)/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result==0.5)/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result==0)/nrow(temp.epl)
+}
+
+df.Laliga <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season), League = "La Liga") 
+colnames(df.Laliga) <- c("home win", "draw", "away win", "season", "League")
+df.Laliga <- df.Laliga %>% filter(`home win`>0,`away win`>0,draw>0)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Get Serie A data
+
+epl.df <- italy %>% mutate(result =  ifelse(hgoal > vgoal, 1, ifelse(hgoal < vgoal, 0, 0.5)))%>%
+  select(home, visitor, Season, result)
+
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result==1)/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result==0.5)/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result==0)/nrow(temp.epl)
+}
+
+df.SerieA <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season), League = "Serie A") 
+colnames(df.SerieA) <- c("home win", "draw", "away win", "season", "League")
+df.SerieA <- df.SerieA %>% filter(`home win`>0,`away win`>0,draw>0)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+epl.df <- england %>% filter(division==1)
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result=="H")/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result=="D")/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result=="A")/nrow(temp.epl)
+}
+
+df <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season)) 
+colnames(df) <- c("home win", "draw", "away win", "season")
+df <- df %>% filter(`home win`>0,`away win`>0,draw>0)
+
+df.EPL <- df
+df.EPL$League <- "EPL"
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+df <- rbind(df.EPL, df.Bundesliga, df.Laliga, df.SerieA)
+df <- df %>% gather("result","percentage", `home win`:`away win`)
+
+ggplot(df, aes(x=df$season, y=df$percentage, col=League)) +
+  facet_grid(.~df$result, scales = "free")+
+  geom_point(alpha=1/8)+
+  geom_smooth(span=0.7)+
+  scale_y_continuous("",breaks = c(0, 0.2, 0.4, 0.6, 0.8), lim = c(0, 0.8), 
+                     labels = c("0%","20%","40%", "60%", "80%"))+
+  scale_x_continuous(lim=c(1928,2016))+
+  ggtitle( "Percentage of Home Wins, Away Wins, and Draws for Top 4 European leagues")+
+  xlab("Season")+
+  theme_bw()
+
+```
+
+  Similar to the English Premier League, there are overall declining trends in percentage of home team wins for La Liga, Bundesliga, and Serie A over the time periods. However, there are several interesting points that we can take away from this graph. La Liga stands out as the shift in home win percentage is very impressive. In the 1950s era, home teams won as high as 70% of their games, that number dropped as low as 42% in the 2000s. Serie A also stands out as the league with the lowest win percentage for home teams. It started at 60% and consistently dropping ever since. From 1950 until 1980 period, the percentage declined sharply, reaching approximately 40% in 1980. However, since the early 1980s, home team win percentage started to increase steadily and managed to be over 50% for some during the late 1990s. Bundesliga’s data is collected later than the others, only since 1963. However, this data’s shape is quite strange compared to others. From 1963 to 1983, it had an inverse quadratic trend over time, which indicates that the home team win percentage rocketed and immediately dropped over the course of 20 years. Even though I have not found a logical explanation for this, the infamous match-fixing scandal in Bundesliga in 1971 might have effect on this trend. 
+  
+  According to the graph, there was a 10% gap from 55% to 65% between the leagues’ percentage of home win among the leagues. Currently, this gap is between 45% and 50%. So, not only does the win percentage for home team in four leagues decrease, but also the difference in the percentage between the leagues. Over the course of over 120 years, there are some time period where gaps between leagues are extremely high. Specifically, around the year of 1975, while La Liga had a percentage of roughly 65%, Serie A settled at around 45%. Looking wider, Bundesliga’s number is about 57%, and Premier League at 50%. Perhaps, the intensity of the league is a key factor to how low or high these numbers are. Serie A and Premier League during this era were very competitive with around 4 or 5 top teams competed exclusively for the title, while there was a dominant club in Bundesliga, and only 2 elite teams for La Liga. 
+  
+  As all four leagues have declining trend in home win percentage over time, these numbers dropped down to 50% together around the early 1990s. Since then, the percentage for home teams win have been mostly under 50% for all 4 leagues. This means that a club is more likely to draw or lose when they are playing at their home field. Even though the win percentage when playing at their home field is still higher than playing away, one can argue that there is no such thing as “home advantage”, when statistically speaking, you are more likely to not win at your home field. 
+  
+  So far, we have only been looking at data from league games, which only represents one aspect of soccer. Thus, I would want to look at how the data might differ when it comes to competitions. In soccer club competitions, you usually play two legs with the same opponent, one at your home stadium, and one at theirs. In it comes to knock-out stage of a competition, once your total score after two legs is lower than our opponents’, you are eliminated from the cup. Therefore, the pressure is much bigger when a club play in a competition than playing in league games. I decided to use the “champs” dataset, which was collected from the UEFA Champions League and the European Cup. Champions League is arguably the most competitive and celebrated club competition all over the world. It is an annual competition where the top 4 teams from each countries around Europe compete with each other. Additionally, European Cup is where clubs that finished 5th and 6th in their national league compete with others . In these matches, the venue plays a crucial role deciding the results. First, since the clubs participate are from different countries, the visiting team usually has to fly to another country in a short time just to play the match. Secondly, when the tournament reaches the knockout stage, extra time, penalty shoot out, and the away goals rule are used as the methods to deciding the winner in the event of a draw. “The application of the away goals rule means that any goals scored away from home effectively count double when the scores are level. So, if the aggregate score is level after two legs, the team who scores more away goals is deemed the victor.” (3) The percentage for home team wins, draws, and away team wins in the UEFA Champions League and European Cup are shown in the graph below:
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+epl.df <- champs %>% mutate(result =  ifelse(hgoal > vgoal, 1, ifelse(hgoal < vgoal, 0, 0.5)))%>%
+  select(home, visitor, Season, result)
+
+year.home.win = NULL
+year.draw = NULL
+year.away.win = NULL
+
+iteration <- max(epl.df$Season) - min(epl.df$Season)
+for (i in 1:(iteration+1)) {
+  temp.epl <- filter(epl.df, Season==i+min(epl.df$Season)-1)
+  year.home.win[i] <- tally(temp.epl, result==1)/nrow(temp.epl)
+  year.draw[i] <- tally(temp.epl, result==0.5)/nrow(temp.epl)
+  year.away.win[i] <- tally(temp.epl, result==0)/nrow(temp.epl)
+}
+
+df.CL <- data.frame(data.frame(unlist(year.home.win)), data.frame(unlist(year.draw)), data.frame(unlist(year.away.win)), min(epl.df$Season):max(epl.df$Season), League = "Champs") 
+colnames(df.CL) <- c("home", "draw", "away", "season", "League")
+df.CL <- df.CL %>% filter(home>0,away>0,draw>0)%>% gather(result, percentage, home:away)
+
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(df.CL, aes(x=df.CL$season, y=df.CL$percentage, col=result)) + 
+  geom_point()+
+  geom_smooth(span=0.5, alpha=0.2)+
+  scale_y_continuous(name="Percent", breaks=c(0.2, 0.4, 0.6), labels = c("20%", "40%", "60%"))+
+  ggtitle("Champions League and European Cup Results by Year")+xlab("Season")+
+  theme_bw()
+```
+
+  Same as the previous graphs that we have, home team win percentage has also been declining in the UEFA Champions League and European Cup, despite its competitiveness. Back in the 1960s era, teams that played at their home stadium had about 60% chance of winning the game. Recently, this chance variates around 50%. The trend has been declining steadily, but for a decade from 1970 to 1980, it was actually increasing. On the other hand, draw and away team win percentage stay at the same level, fluctuating around 20% for draw, and 30% for away team win. 
+  
+# III. Explanation
+
+  Having looked at both league and tournament style data from European soccer leagues, it is safe to say that the home advantage effect on the game result has been declining over time. Sport analyst has noticed this trend for a while and offer their explanations. In 2008, two economists from Oxford University proposed that “this decline was partly caused by the advent of televised football.” (4) in their article “Playing Like the Home Team: An Economic Investigation into Home Advantage in Football”. They argued that the players are likely to put more effort when more fans are watching them. Clearly, home team would have more fans observing them playing live. However, television has mitigated this fact since it let away team fans view their team play as easy and arguably with more comfort. Come to think of it, technology has been playing a huge role on how home teams have been winning less. As time progresses, soccer or sports overall have been heavily affected by technology. Factors that used to be advantages for home teams, such as easier access to tickets, travel effects, or referee bias, have less effect on the results nowadays thanks to the advanced technology. Travelling far distances are faster and more comfortable nowadays, which helps the visiting team preserve their energy and mentality before the game. As the internet evolved, match tickets are sold online mostly nowadays and fans can book them online fast and easy. And with advanced technologies like Video Assistant Referees or Goal-line technology introduced, controversial referee decisions happen less and less, thanks to the accuracy of machinery. As we enter the modern era of soccer, technology helps making the game more balance, resulting in the declining trend that we see.
+  
+# IV. Discussion of good visualization
+
+  Data visualization is how statisticians or data scientists essentially communicate with their audience. As data is growing exponentially everyday thanks to modern and advanced technology that we have, the role of visualization has become more and more important. Although there have not been a set of universally agreed principles on what are good for graphic design of visualization, there are several ones that should be. American statistician, Edward Tufte, suggested several principles for good data visualization in his book, “The Visual Display of Quantitative Information”. These principles can be summarized as: graphical integrity, data ink, chartjunk, and data density (5). First and most important, your visualization must be truthful to your data. Keeping your data intact and making your audience to have the right idea about the data are the first things you should make sure of when evaluating your graph. Some examples that are usually used to manipulate this principle are how graphs sometimes exclude 0 from their axis or when the designer distorts the quantity. Second, Tufte claims that good graphical representations maximize data-ink, which means a good graph only focuses on the data, and nothing else. The data-ink ratio which is calculated by 1 minus the proportion of the graph that can be erased without loss of data-information. (6). The third Tufte’s idea of good visualization is what he calls Chartjunk, the unnecessary use of graphical effects when visualizing data. Graphs with excessive details like moiré vibration, heavy grids or self-promoting ones can make the viewers harder to understand the data it represents. Lastly, the principle of data density maximization proposes that graphs should hold as much information as possible. Tufte wants to maximize the data density and avoid low density graph. One way to achieve this is to use the Shrink Principle, which claims that every graphs can be shrunk without losing legibility of information. For too low densities, Tufte suggested using a table if possible. Edward Tufte is considered a pioneer in the field of interpretation and presentation of data, and the list above is a set of rules of thumb usually followed by statisticians when doing 2 dimensional data visualization. However, there are many other principles that should be considered when making graphs. For example, color factor should always be considered. Colorful graphs are always a treat for our eyes, but it should be meaningful and with restraint. Using colorblind friendly colors is also a good thing to keep in mind while visualizing data. In all of my graphs, I try to apply as much principle as possible. Meaningful and clear titles and axis names are assured. Also, I make sure to make the y-axis variable most useful to the data, as the data is for a time period, so the x-axis is for years. Moreover, I adjusted the theme so it is easier to look at the data represented in the graphs.
+  
+# V. Conclusion
+  
+  After looking at the win percentage by home-field teams from 4 different top leagues of Europe: England, Spain, Germany, and Italy; as well as Champions League and European Cup, from data tracing back to 1888, we have noticed a declining trend overall. This trend has been consistent ever since and seems to have stabilized. The most important factor contributing to this is the number of goals scored over time. Several other explanations for this decline have been discussed, including environmental or mechanical factors. Principles on how to make effective graphical visualization of data has also been examined.
+  
+# References
+
+(1) https://benthamopen.com/contents/pdf/TOSSJ/TOSSJ-1-12.pdf
+(2) https://github.com/jalapic/engsoccerdata
+(3) https://www.goal.com/en-us/news/away-goals-rule-what-is-it-will-uefa-drop-from-champions/c8h61pd7sm916zulqe11ug53
+(4) https://www.researchgate.net/profile/J_James_Reade/publication/23978438_Playing_Like_the_Home_Team_An_Economic_Investigation_into_Home_Advantage_in_Football/links/0c9605285f164e34c9000000/Playing-Like-the-Home-Team-An-Economic-Investigation-into-Home-Advantage-in-Football.pdf
+(5) https://thedoublethink.com/tuftes-principles-for-visualizing-quantitative-information/
+(6) Edward Tufte. The Visual Display of Quantitative Information. 1983
+
+
+
+
+
+
